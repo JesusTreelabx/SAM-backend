@@ -16,6 +16,11 @@ lint = true
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 resolve_s3 = true
+s3_prefix = "test-backend"
+region = "us-east-1"
+profile = "sandbox-jesus"
+image_repositories = []
+parameter_overrides = "Environment=\"dev\" ClientNumber=\"700\" AppName=\"eqhuma\""
 
 [default.package.parameters]
 resolve_s3 = true

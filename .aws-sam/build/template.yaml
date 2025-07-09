@@ -1,92 +1,51 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: test-backend
+Description: CloudFormation Template for Cognito User Pool, and Register, Sign-in,
+  Reset-password Endpoints
 Transform:
 - AWS::Serverless-2016-10-31
+Parameters:
+  Environment:
+    Type: String
+    Description: Specifies the deployment environment (e.g., dev, uat, prod).
+    Default: dev
+    AllowedValues:
+    - dev
+    - uat
+    - prod
+  ClientNumber:
+    Type: String
+    Description: Unique identifier for the client, used for resource naming.
+    Default: '500'
+  AppName:
+    Type: String
+    Description: Name of the application, used in URLs and resource identifiers. e.g.,
+      uber, airbnb, etc.
+    Default: appname
 Resources:
-  getAllItemsFunction:
-    Type: AWS::Serverless::Function
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
     Properties:
-      Handler: src/handlers/get-all-items.getAllItemsHandler
-      Runtime: nodejs20.x
-      Architectures:
-      - x86_64
-      MemorySize: 128
-      Timeout: 100
-      Description: A simple example includes a HTTP get method to get all items from
-        a DynamoDB table.
+      UserPoolName: MyAppUserPool
+      AutoVerifiedAttributes:
+      - email
       Policies:
-      - DynamoDBCrudPolicy:
-          TableName:
-            Ref: SampleTable
-      Environment:
-        Variables:
-          SAMPLE_TABLE:
-            Ref: SampleTable
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            Path: /
-            Method: GET
-      CodeUri: getAllItemsFunction
-    Metadata:
-      SamResourceId: getAllItemsFunction
-  getByIdFunction:
-    Type: AWS::Serverless::Function
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
     Properties:
-      Handler: src/handlers/get-by-id.getByIdHandler
-      Runtime: nodejs20.x
-      Architectures:
-      - x86_64
-      MemorySize: 128
-      Timeout: 100
-      Description: A simple example includes a HTTP get method to get one item by
-        id from a DynamoDB table.
-      Policies:
-      - DynamoDBCrudPolicy:
-          TableName:
-            Ref: SampleTable
-      Environment:
-        Variables:
-          SAMPLE_TABLE:
-            Ref: SampleTable
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            Path: /{id}
-            Method: GET
-      CodeUri: getByIdFunction
-    Metadata:
-      SamResourceId: getByIdFunction
-  putItemFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: src/handlers/put-item.putItemHandler
-      Runtime: nodejs20.x
-      Architectures:
-      - x86_64
-      MemorySize: 128
-      Timeout: 100
-      Description: A simple example includes a HTTP post method to add one item to
-        a DynamoDB table.
-      Policies:
-      - DynamoDBCrudPolicy:
-          TableName:
-            Ref: SampleTable
-      Environment:
-        Variables:
-          SAMPLE_TABLE:
-            Ref: SampleTable
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            Path: /
-            Method: POST
-      CodeUri: putItemFunction
-    Metadata:
-      SamResourceId: putItemFunction
+      ClientName: MyAppTestClient
+      UserPoolId:
+        Ref: CognitoUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+      - ALLOW_USER_PASSWORD_AUTH
+      - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
   SignInFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -97,6 +56,22 @@ Resources:
       MemorySize: 128
       Timeout: 100
       Description: Handles user sign-in requests.
+      Environment:
+        Variables:
+          USER_POOL_ID:
+            Ref: CognitoUserPool
+          CLIENT_ID:
+            Ref: CognitoUserPoolClient
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - cognito-idp:AdminInitiateAuth
+          Resource:
+            Fn::GetAtt:
+            - CognitoUserPool
+            - Arn
       Events:
         Api:
           Type: Api
@@ -116,6 +91,22 @@ Resources:
       MemorySize: 128
       Timeout: 100
       Description: Handles user registration requests.
+      Environment:
+        Variables:
+          USER_POOL_ID:
+            Ref: CognitoUserPool
+          CLIENT_ID:
+            Ref: CognitoUserPoolClient
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - cognito-idp:SignUp
+          Resource:
+            Fn::GetAtt:
+            - CognitoUserPool
+            - Arn
       Events:
         Api:
           Type: Api
@@ -135,6 +126,23 @@ Resources:
       MemorySize: 128
       Timeout: 100
       Description: Handles password reset requests.
+      Environment:
+        Variables:
+          USER_POOL_ID:
+            Ref: CognitoUserPool
+          CLIENT_ID:
+            Ref: CognitoUserPoolClient
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - cognito-idp:ForgotPassword
+          - cognito-idp:ConfirmForgotPassword
+          Resource:
+            Fn::GetAtt:
+            - CognitoUserPool
+            - Arn
       Events:
         Api:
           Type: Api
